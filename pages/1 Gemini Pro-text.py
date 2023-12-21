@@ -28,41 +28,39 @@ def text_page():
 
     genai.configure(api_key=api_key)
 
-    
-    # Set up the model configuration options
-    temperature = st.sidebar.slider("Temperature", 0.0, 1.0, 0.9, 0.1)
-    top_p = st.sidebar.number_input("Top P", 0.0, 1.0, 1.0, 0.1)
-    top_k = st.sidebar.number_input("Top K", 1, 100, 1)
-    max_output_tokens = st.sidebar.number_input("Max Output Tokens", 1, 10000, 2048)
+    # Set up the prompt input field
+    prompt = st.text_area("Enter your Query:", height=200)
 
-    # Set up the model
-    generation_config = {
-        "temperature": temperature,
-        "top_p": top_p,
-        "top_k": top_k,
-        "max_output_tokens": max_output_tokens,
-    }
+    # Submit button to generate text
+    if st.button("Generate Text"):
+        # Check if prompt is provided
+        if not prompt:
+            st.error("Please enter your query.")
+            st.stop()
 
-    safety_settings = "{}"
-    safety_settings = json.loads(safety_settings)
+
+        # Configure the model
+        generation_config = {
+            "temperature": 0.9,
+            "top_p": 1.0,
+            "top_k": 1,
+            "max_output_tokens": 1024,
+        }
+
+        safety_settings = "{}"
+        safety_settings = json.loads(safety_settings)
         
-    prompt = st.text_input("Enter your Query:")
-    # Check if the query is provided
-    if not prompt:
-        st.error("Please enter your query.")
-        st.stop()
+        # Generate text using Gemini Pro
+        gemini = genai.GenerativeModel(model_name="gemini-pro",
+                                    generation_config=generation_config,
+                                    safety_settings=safety_settings)
 
+        # Pass the prompt as the contents argument
+        response = gemini.generate_content(contents=[prompt])
 
-    gemini = genai.GenerativeModel(model_name="gemini-pro",
-                                  generation_config=generation_config,
-                                  safety_settings=safety_settings)
-                
-
-    prompt_parts = [prompt]
-    
-    try:
-        response = gemini.generate_content(prompt_parts)
+        # Display generated text
         st.subheader("Gemini:")
+
         if response.text:
             st.write(response.text)
 
@@ -70,30 +68,33 @@ def text_page():
             markdown_str = f"## Gemini Output:\n\n{response.text}"
             markdown_file = BytesIO()
             markdown_file.write(markdown_str.encode('utf-8'))
+
+            # Use streamlit.markdown() to render the Markdown code directly in a text area
+            st.markdown(markdown_str)
+
+            # Download button for Markdown
             st.markdown(
                 "### Download Markdown",
                 unsafe_allow_html=True,
                 key="markdown-download",
-                on_click=download_file,
-                args=(markdown_file, "Gemini_Output.md"),
+                on_click=lambda: download_file(markdown_file, "Gemini_Output.md"),
             )
 
             # HTML Download
             html_str = f"<h2>Gemini Output:</h2>\n\n{response.text}"
             html_file = BytesIO()
             html_file.write(html_str.encode('utf-8'))
+
+            # Download button for HTML
             st.markdown(
                 "### Download HTML",
                 unsafe_allow_html=True,
                 key="html-download",
-                on_click=download_file,
-                args=(html_file, "Gemini_Output.html"),
+                on_click=lambda: download_file(html_file, "Gemini_Output.html"),
             )
 
         else:
             st.write("No output from Gemini.")
-    except Exception as e:
-        st.write(f"An error occurred: {str(e)}")
 
 # Function to download file
 def download_file(file, filename):
